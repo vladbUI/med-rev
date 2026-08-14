@@ -397,12 +397,12 @@ export default function App() {
               </div>
               <div style={{ padding: '16px 0' }}>
                 <p style={{ fontSize: 13, color: '#3d4d42', marginBottom: 10, lineHeight: 1.5 }}>
-                  Enter your backend API URL (e.g. Cloudflare tunnel or local server):
+                  Enter your backend API server URL:
                 </p>
                 <input
                   value={apiUrlInput}
                   onChange={e => setApiUrlInput(e.target.value)}
-                  placeholder="https://xxx.trycloudflare.com or http://127.0.0.1:8000"
+                  placeholder="http://127.0.0.1:8000"
                   style={{
                     width: '100%',
                     padding: '10px 12px',
@@ -413,20 +413,13 @@ export default function App() {
                     fontFamily: 'monospace',
                   }}
                 />
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => setApiUrlInput('https://stan-kyle-see-settlement.trycloudflare.com')}
-                    style={{ fontSize: 11, background: '#eef6f2', color: '#133e29', border: '1px solid #c8d6cb', padding: '5px 9px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    ⚡ Use Active Laptop Tunnel
-                  </button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button
                     type="button"
                     onClick={() => setApiUrlInput('http://127.0.0.1:8000')}
-                    style={{ fontSize: 11, background: '#eef6f2', color: '#133e29', border: '1px solid #c8d6cb', padding: '5px 9px', borderRadius: 6, cursor: 'pointer' }}
+                    style={{ fontSize: 11, background: '#eef6f2', color: '#133e29', border: '1px solid #c8d6cb', padding: '5px 9px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
                   >
-                    Use Localhost
+                    Reset to Localhost (127.0.0.1:8000)
                   </button>
                 </div>
               </div>
