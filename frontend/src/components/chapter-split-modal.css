@@ -1,0 +1,247 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 30, 22, 0.48);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.chapter-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.16);
+  width: 100%;
+  max-width: 620px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e0e7e1;
+  animation: modalScaleUp 0.2s ease-out;
+}
+
+@keyframes modalScaleUp {
+  from { transform: scale(0.96); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  padding: 18px 22px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #edf2ee;
+}
+
+.modal-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #e4f1e8;
+  color: #176341;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.modal-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-title-wrap h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #17211c;
+  font-weight: 750;
+}
+
+.modal-filename {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #6d7b71;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-close-btn {
+  border: 0;
+  background: transparent;
+  color: #88968d;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.modal-close-btn:hover {
+  background: #edf1ee;
+  color: #223028;
+}
+
+.modal-description {
+  margin: 0;
+  padding: 14px 22px;
+  background: #f7faf8;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4b5d51;
+  border-bottom: 1px solid #edf2ee;
+}
+
+.modal-toolbar {
+  padding: 12px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #edf2ee;
+  background: #fff;
+}
+
+.select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #3b4d41;
+  cursor: pointer;
+}
+
+.chapter-list {
+  padding: 10px 22px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e3ebe4;
+  background: #fdfefe;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chapter-item:hover {
+  background: #f4f8f5;
+  border-color: #bad3c2;
+}
+
+.chapter-item.selected {
+  background: #f0f7f2;
+  border-color: #9ac7a8;
+}
+
+.chapter-item input[type="checkbox"] {
+  accent-color: #196946;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.chapter-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.chapter-info strong {
+  font-size: 13px;
+  color: #1a2820;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapter-pages {
+  font-size: 11px;
+  color: #637568;
+  background: #e7efe9;
+  padding: 3px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.modal-actions {
+  padding: 14px 22px;
+  border-top: 1px solid #edf2ee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #fafbfa;
+}
+
+.action-right {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-btn {
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 9px 15px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.modal-btn.primary {
+  background: #196946;
+  color: #fff;
+}
+
+.modal-btn.primary:hover:not(:disabled) {
+  background: #135537;
+}
+
+.modal-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-btn.secondary {
+  background: #eef2ef;
+  color: #4b5a50;
+}
+
+.modal-btn.secondary:hover {
+  background: #e2e8e3;
+}
+
+.modal-btn.ghost {
+  background: transparent;
+  color: #607266;
+  font-size: 12px;
+  text-decoration: underline;
+  padding: 6px 4px;
+}
+
+.modal-btn.ghost:hover {
+  color: #17211c;
+}

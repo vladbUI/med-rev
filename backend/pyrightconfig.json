@@ -1,0 +1,12 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "."
+  ],
+  "include": [
+    "app"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": false
+}

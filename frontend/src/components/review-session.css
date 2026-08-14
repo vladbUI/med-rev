@@ -1,0 +1,222 @@
+.review-panel {
+  max-width: 680px;
+  width: 100%;
+  margin: 20px auto 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.review-header h2 { margin: 0; }
+
+.review-progress {
+  font-size: 13px;
+  font-weight: 650;
+  color: #68756c;
+  background: #edf0ed;
+  padding: 5px 11px;
+  border-radius: 14px;
+}
+
+/* ── Empty / loading ──────────────────────────────────── */
+
+.review-empty {
+  margin: auto;
+  text-align: center;
+  padding: 70px 20px;
+  color: #66736a;
+}
+
+.review-empty-icon {
+  width: 58px; height: 58px;
+  margin: 0 auto 20px;
+  border-radius: 18px;
+  background: #e4f1e8;
+  font-size: 30px;
+  display: grid;
+  place-items: center;
+}
+
+.review-empty h3 { margin: 0 0 10px; font-size: 22px; color: #17211c; }
+.review-empty p { margin: 0; line-height: 1.6; max-width: 380px; margin-inline: auto; }
+
+.review-loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #68756c;
+}
+
+.review-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #dce5dd;
+  border-top-color: #196946;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: reviewSpin 0.8s linear infinite;
+}
+
+@keyframes reviewSpin { to { transform: rotate(360deg); } }
+
+.review-error { color: #b53d31; font-size: 13px; margin: 0 0 12px; }
+
+/* ── Card ─────────────────────────────────────────────── */
+
+.review-card-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 20px;
+}
+
+.review-card {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e0e7e1;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 4px 20px #223c2a06;
+  transition: box-shadow 0.2s;
+}
+
+.review-card.revealed {
+  box-shadow: 0 6px 28px #223c2a0c;
+}
+
+.review-topic {
+  display: inline-block;
+  font-size: 11px;
+  color: #5c7662;
+  background: #e5f0e8;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.review-side-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #849087;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.review-front p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.55;
+  color: #17211c;
+}
+
+.review-back {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e6e9e4;
+  animation: revealIn 0.25s ease-out;
+}
+
+@keyframes revealIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.review-back p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #2d3a31;
+}
+
+/* ── Reveal button ────────────────────────────────────── */
+
+.review-reveal-btn {
+  border: 0;
+  border-radius: 10px;
+  background: #196946;
+  color: #fff;
+  font: inherit;
+  font-weight: 650;
+  font-size: 15px;
+  padding: 13px 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.15s;
+}
+
+.review-reveal-btn:hover { background: #145937; }
+
+/* ── Grade buttons ────────────────────────────────────── */
+
+.review-grade-bar {
+  display: flex;
+  gap: 10px;
+  animation: revealIn 0.2s ease-out;
+}
+
+.review-grade-btn {
+  border: 2px solid var(--grade-color);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--grade-color);
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 12px 22px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.15s, color 0.15s;
+  min-width: 80px;
+}
+
+.review-grade-btn:hover:not(:disabled) {
+  background: var(--grade-color);
+  color: #fff;
+}
+
+.review-grade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Keyboard hints ───────────────────────────────────── */
+
+.shortcut-hint {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.6;
+  background: rgba(0,0,0,0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.review-shortcuts-hint {
+  text-align: center;
+  font-size: 12px;
+  color: #8b958e;
+  margin-top: auto;
+  padding: 16px 0 8px;
+}
+
+.review-shortcuts-hint kbd {
+  background: #edf0ed;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 11px;
+}

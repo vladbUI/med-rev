@@ -1,0 +1,12 @@
+{
+  "venvPath": "backend",
+  "venv": ".venv",
+  "extraPaths": [
+    "backend"
+  ],
+  "include": [
+    "backend/app"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": false
+}

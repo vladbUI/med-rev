@@ -1,0 +1,19 @@
+# Local secrets and runtime files
+.env
+**/.env
+*.env
+backend/.env
+frontend/.env
+
+# Dependencies and build outputs
+**/node_modules/
+**/dist/
+**/.venv/
+**/__pycache__/
+*.py[cod]
+
+# Temp files
+work/
+scratch/
+*.log
+.DS_Store
