@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
   createNotebook,
+  getApiUrl,
   getHealth,
   getReviewQueue,
   listNotebooks,
   listSources,
   NotebookItem,
+  setCustomApiUrl,
   SourceStatus,
 } from './lib/api'
 import SourceUpload from './components/SourceUpload'
@@ -28,21 +30,35 @@ export default function App() {
   const [activeSourceId, setActiveSourceId] = useState<string | undefined>(undefined)
   const [isCreatingNotebook, setIsCreatingNotebook] = useState(false)
   const [newNotebookTitle, setNewNotebookTitle] = useState('')
+  const [showApiModal, setShowApiModal] = useState(false)
+  const [apiUrlInput, setApiUrlInput] = useState('')
 
   // Periodic health check heartbeat
   useEffect(() => {
     function check() {
-      getHealth().then(() => setOnline(true)).catch(() => setOnline(false))
+      getHealth()
+        .then(() => setOnline(true))
+        .catch(() => setOnline(false))
     }
     check()
-    const timer = setInterval(check, 6_000)
+    const timer = setInterval(check, 5_000)
     return () => clearInterval(timer)
   }, [])
 
-  // Load notebooks with localStorage persistence
-  useEffect(() => {
+  function loadNotebooks() {
     listNotebooks()
-      .then(nbs => {
+      .then(async nbs => {
+        if (nbs.length === 0) {
+          try {
+            const initial = await createNotebook('Clinical Hematology & MLS Review')
+            setNotebooks([initial])
+            setActiveNotebook(initial)
+            localStorage.setItem('medtech_active_notebook_id', initial.id)
+            return
+          } catch {
+            // fallback
+          }
+        }
         setNotebooks(nbs)
         if (nbs.length > 0) {
           const savedId = localStorage.getItem('medtech_active_notebook_id')
@@ -59,9 +75,16 @@ export default function App() {
       .catch(() => {
         if (envNotebookId) {
           setActiveNotebook({ id: envNotebookId, title: 'Hematology', created_at: '' })
+        } else {
+          setActiveNotebook({ id: 'demo-notebook-local', title: 'Hematology & MLS Review', created_at: '' })
         }
       })
-  }, [])
+  }
+
+  // Load notebooks on mount or when API reconnected
+  useEffect(() => {
+    loadNotebooks()
+  }, [online])
 
   function handleSelectNotebook(nb: NotebookItem) {
     setActiveNotebook(nb)
@@ -326,11 +349,104 @@ export default function App() {
             <p className="eyebrow">NOTEBOOK</p>
             <h1>{activeNotebook?.title || 'Loading…'}</h1>
           </div>
-          <div className="status">
-            <i className={online ? 'ok' : 'off'}></i>
-            {online === null ? 'Connecting…' : online ? 'API connected' : 'API offline'}
-          </div>
+          <button
+            type="button"
+            className="status-pill-btn"
+            onClick={() => {
+              setApiUrlInput(getApiUrl())
+              setShowApiModal(true)
+            }}
+            title="Click to configure backend API URL"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              background: online ? 'rgba(25, 105, 70, 0.08)' : 'rgba(220, 53, 69, 0.08)',
+              border: `1px solid ${online ? '#a3cfbb' : '#f5c2c7'}`,
+              borderRadius: 20,
+              padding: '4px 12px',
+              fontSize: 12,
+              fontWeight: 650,
+              color: online ? '#0f5132' : '#842029',
+              cursor: 'pointer',
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: online ? '#198754' : '#dc3545',
+                display: 'inline-block',
+              }}
+            />
+            {online === null ? 'Connecting…' : online ? '● API connected' : '● API offline (Configure)'}
+          </button>
         </header>
+
+        {showApiModal && (
+          <div className="modal-backdrop" onClick={() => setShowApiModal(false)}>
+            <div className="chapter-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+              <div className="modal-header">
+                <div className="modal-icon">⚙️</div>
+                <div className="modal-title-wrap">
+                  <h3>Backend Server Connection</h3>
+                  <p className="modal-filename">Connect to your Laptop or Cloud Server</p>
+                </div>
+                <button className="modal-close-btn" onClick={() => setShowApiModal(false)}>✕</button>
+              </div>
+              <div style={{ padding: '16px 0' }}>
+                <p style={{ fontSize: 13, color: '#3d4d42', marginBottom: 10, lineHeight: 1.5 }}>
+                  Enter your backend API URL (e.g. Cloudflare tunnel or local server):
+                </p>
+                <input
+                  value={apiUrlInput}
+                  onChange={e => setApiUrlInput(e.target.value)}
+                  placeholder="https://xxx.trycloudflare.com or http://127.0.0.1:8000"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #c8d6cb',
+                    fontSize: 13,
+                    boxSizing: 'border-box',
+                    fontFamily: 'monospace',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setApiUrlInput('https://stan-kyle-see-settlement.trycloudflare.com')}
+                    style={{ fontSize: 11, background: '#eef6f2', color: '#133e29', border: '1px solid #c8d6cb', padding: '5px 9px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    ⚡ Use Active Laptop Tunnel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setApiUrlInput('http://127.0.0.1:8000')}
+                    style={{ fontSize: 11, background: '#eef6f2', color: '#133e29', border: '1px solid #c8d6cb', padding: '5px 9px', borderRadius: 6, cursor: 'pointer' }}
+                  >
+                    Use Localhost
+                  </button>
+                </div>
+              </div>
+              <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
+                <button className="modal-btn secondary" onClick={() => setShowApiModal(false)}>Cancel</button>
+                <button
+                  className="modal-btn primary"
+                  onClick={() => {
+                    setCustomApiUrl(apiUrlInput)
+                    setShowApiModal(false)
+                    getHealth().then(() => setOnline(true)).catch(() => setOnline(false))
+                    loadNotebooks()
+                  }}
+                >
+                  Save & Connect
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="tabs">
           <button onClick={() => setTab('ask')} className={tab === 'ask' ? 'tab selected' : 'tab'}>

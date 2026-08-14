@@ -1,9 +1,23 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
+export function getApiUrl(): string {
+  const custom = typeof window !== 'undefined' ? localStorage.getItem('medtech_api_url') : null
+  if (custom && custom.trim()) return custom.trim().replace(/\/+$/, '')
+  const envUrl = import.meta.env.VITE_API_URL
+  if (envUrl && envUrl.trim()) return envUrl.trim().replace(/\/+$/, '')
+  return 'http://127.0.0.1:8000'
+}
+
+export function setCustomApiUrl(url: string) {
+  if (url && url.trim()) {
+    localStorage.setItem('medtech_api_url', url.trim().replace(/\/+$/, ''))
+  } else {
+    localStorage.removeItem('medtech_api_url')
+  }
+}
 
 // ── Health ──────────────────────────────────────────────────
 
 export async function getHealth(): Promise<{ status: string }> {
-  const response = await fetch(`${API_URL}/health`)
+  const response = await fetch(`${getApiUrl()}/health`)
   if (!response.ok) throw new Error('API unavailable')
   return response.json()
 }
@@ -18,13 +32,13 @@ export type NotebookItem = {
 }
 
 export async function listNotebooks(): Promise<NotebookItem[]> {
-  const response = await fetch(`${API_URL}/notebooks`)
+  const response = await fetch(`${getApiUrl()}/notebooks`)
   if (!response.ok) throw new Error('Could not fetch notebooks')
   return response.json()
 }
 
 export async function createNotebook(title: string, subject_tag?: string): Promise<NotebookItem> {
-  const response = await fetch(`${API_URL}/notebooks`, {
+  const response = await fetch(`${getApiUrl()}/notebooks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, subject_tag }),
@@ -59,7 +73,7 @@ export type DetectChaptersResponse = {
 export async function detectChapters(file: File): Promise<DetectChaptersResponse> {
   const form = new FormData()
   form.append('file', file)
-  const response = await fetch(`${API_URL}/sources/detect-chapters`, { method: 'POST', body: form })
+  const response = await fetch(`${getApiUrl()}/sources/detect-chapters`, { method: 'POST', body: form })
   if (!response.ok) throw new Error((await response.json().catch(() => null))?.detail ?? 'Chapter detection failed')
   return response.json()
 }
@@ -75,7 +89,7 @@ export type BookItem = {
 }
 
 export async function getBooks(notebookId: string): Promise<BookItem[]> {
-  const response = await fetch(`${API_URL}/sources/books/${notebookId}`)
+  const response = await fetch(`${getApiUrl()}/sources/books/${notebookId}`)
   if (!response.ok) return []
   return response.json()
 }
@@ -84,7 +98,7 @@ export async function importBookChapters(
   bookId: string,
   chapters: ChapterItem[]
 ): Promise<SourceStatus[]> {
-  const response = await fetch(`${API_URL}/sources/books/${bookId}/import-chapters`, {
+  const response = await fetch(`${getApiUrl()}/sources/books/${bookId}/import-chapters`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chapters }),
@@ -105,7 +119,7 @@ export async function uploadChapters(
   if (allChapters) {
     form.append('all_chapters_json', JSON.stringify(allChapters))
   }
-  const response = await fetch(`${API_URL}/sources/upload-chapters?notebook_id=${notebookId}`, {
+  const response = await fetch(`${getApiUrl()}/sources/upload-chapters?notebook_id=${notebookId}`, {
     method: 'POST',
     body: form,
   })
@@ -116,19 +130,19 @@ export async function uploadChapters(
 export async function uploadSource(notebookId: string, file: File): Promise<SourceStatus> {
   const form = new FormData()
   form.append('file', file)
-  const response = await fetch(`${API_URL}/sources/upload?notebook_id=${notebookId}`, { method: 'POST', body: form })
+  const response = await fetch(`${getApiUrl()}/sources/upload?notebook_id=${notebookId}`, { method: 'POST', body: form })
   if (!response.ok) throw new Error((await response.json().catch(() => null))?.detail ?? 'Upload failed')
   return response.json()
 }
 
 export async function getSourceStatus(sourceId: string): Promise<SourceStatus> {
-  const response = await fetch(`${API_URL}/sources/${sourceId}/status`)
+  const response = await fetch(`${getApiUrl()}/sources/${sourceId}/status`)
   if (!response.ok) throw new Error('Could not fetch source status')
   return response.json()
 }
 
 export async function listSources(notebookId: string): Promise<SourceStatus[]> {
-  const response = await fetch(`${API_URL}/sources/list/${notebookId}`)
+  const response = await fetch(`${getApiUrl()}/sources/list/${notebookId}`)
   if (!response.ok) throw new Error('Could not fetch sources')
   return response.json()
 }
@@ -161,7 +175,7 @@ export type ChatSession = {
 }
 
 export async function createChatSession(notebookId: string): Promise<ChatSession> {
-  const response = await fetch(`${API_URL}/chat/sessions`, {
+  const response = await fetch(`${getApiUrl()}/chat/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notebook_id: notebookId }),
@@ -171,7 +185,7 @@ export async function createChatSession(notebookId: string): Promise<ChatSession
 }
 
 export async function sendMessage(sessionId: string, content: string): Promise<ChatMessage> {
-  const response = await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`, {
+  const response = await fetch(`${getApiUrl()}/chat/sessions/${sessionId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
@@ -181,7 +195,7 @@ export async function sendMessage(sessionId: string, content: string): Promise<C
 }
 
 export async function getMessages(sessionId: string): Promise<ChatMessage[]> {
-  const response = await fetch(`${API_URL}/chat/sessions/${sessionId}/messages`)
+  const response = await fetch(`${getApiUrl()}/chat/sessions/${sessionId}/messages`)
   if (!response.ok) throw new Error('Could not fetch messages')
   return response.json()
 }
@@ -204,13 +218,13 @@ export type QuizQuestionDraft = {
 }
 
 export async function generateFlashcards(sourceId: string): Promise<{ source_id: string; drafts: FlashcardDraft[] }> {
-  const response = await fetch(`${API_URL}/sources/${sourceId}/generate-flashcards`, { method: 'POST' })
+  const response = await fetch(`${getApiUrl()}/sources/${sourceId}/generate-flashcards`, { method: 'POST' })
   if (!response.ok) throw new Error((await response.json().catch(() => null))?.detail ?? 'Generation failed')
   return response.json()
 }
 
 export async function saveFlashcards(sourceId: string, flashcards: FlashcardDraft[]): Promise<{ saved_count: number }> {
-  const response = await fetch(`${API_URL}/sources/${sourceId}/save-flashcards`, {
+  const response = await fetch(`${getApiUrl()}/sources/${sourceId}/save-flashcards`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ flashcards }),
@@ -220,13 +234,13 @@ export async function saveFlashcards(sourceId: string, flashcards: FlashcardDraf
 }
 
 export async function generateQuiz(sourceId: string): Promise<{ source_id: string; drafts: QuizQuestionDraft[] }> {
-  const response = await fetch(`${API_URL}/sources/${sourceId}/generate-quiz`, { method: 'POST' })
+  const response = await fetch(`${getApiUrl()}/sources/${sourceId}/generate-quiz`, { method: 'POST' })
   if (!response.ok) throw new Error((await response.json().catch(() => null))?.detail ?? 'Generation failed')
   return response.json()
 }
 
 export async function saveQuiz(sourceId: string, questions: QuizQuestionDraft[]): Promise<{ saved_count: number }> {
-  const response = await fetch(`${API_URL}/sources/${sourceId}/save-quiz`, {
+  const response = await fetch(`${getApiUrl()}/sources/${sourceId}/save-quiz`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ questions }),
@@ -251,13 +265,13 @@ export type FlashcardInQueue = {
 }
 
 export async function getReviewQueue(notebookId: string): Promise<FlashcardInQueue[]> {
-  const response = await fetch(`${API_URL}/review/queue?notebook_id=${notebookId}`)
+  const response = await fetch(`${getApiUrl()}/review/queue?notebook_id=${notebookId}`)
   if (!response.ok) throw new Error('Could not fetch review queue')
   return response.json()
 }
 
 export async function gradeCard(flashcardId: string, rating: number): Promise<FlashcardInQueue> {
-  const response = await fetch(`${API_URL}/review/${flashcardId}/grade`, {
+  const response = await fetch(`${getApiUrl()}/review/${flashcardId}/grade`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rating }),
@@ -297,13 +311,13 @@ export type HighlightsData = {
 }
 
 export async function getHighlights(sourceId: string): Promise<HighlightsData | null> {
-  const response = await fetch(`${API_URL}/sources/${sourceId}/highlights`)
+  const response = await fetch(`${getApiUrl()}/sources/${sourceId}/highlights`)
   if (!response.ok) throw new Error('Could not fetch highlights')
   return response.json()
 }
 
 export async function generateHighlights(sourceId: string): Promise<HighlightsData> {
-  const response = await fetch(`${API_URL}/sources/${sourceId}/highlights/generate`, {
+  const response = await fetch(`${getApiUrl()}/sources/${sourceId}/highlights/generate`, {
     method: 'POST',
   })
   if (!response.ok) throw new Error((await response.json().catch(() => null))?.detail ?? 'Failed to extract highlights')
