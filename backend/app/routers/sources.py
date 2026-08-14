@@ -202,11 +202,26 @@ async def detect_document_chapters(file: UploadFile = File(...)) -> DetectChapte
         local_path.unlink(missing_ok=True)
 
 
+class BookItem(BaseModel):
+    id: UUID
+    notebook_id: UUID
+    filename: str
+    storage_path: str
+    total_chapters: int
+    chapters: list[ChapterItem]
+    created_at: str | None = None
+
+
+class ImportBookChaptersRequest(BaseModel):
+    chapters: list[ChapterItem]
+
+
 @router.post("/upload-chapters", response_model=list[SourceStatus], status_code=status.HTTP_202_ACCEPTED)
 async def upload_chapters(
     background_tasks: BackgroundTasks,
     notebook_id: UUID,
     chapters_json: str = Form(...),
+    all_chapters_json: str = Form(None),
     file: UploadFile = File(...),
 ) -> list[SourceStatus]:
     import json
@@ -225,6 +240,17 @@ async def upload_chapters(
 
     if not selected_chapters:
         raise HTTPException(400, "At least one chapter must be selected.")
+
+    # All chapters for future on-demand imports
+    all_chapters: list[ChapterItem] = []
+    if all_chapters_json:
+        try:
+            all_raw = json.loads(all_chapters_json)
+            all_chapters = [ChapterItem(**c) for c in all_raw]
+        except Exception:
+            all_chapters = selected_chapters
+    else:
+        all_chapters = selected_chapters
 
     settings = get_settings()
     contents = await file.read()
@@ -246,7 +272,7 @@ async def upload_chapters(
             sections = extract_chapter_sections(local_path, ch.start_page, ch.end_page)
             chapter_sections_map[ch.index] = sections
 
-        # Upload original file once to storage in background
+        # Upload original file once to storage
         book_storage_path = f"{notebook_id}/books/{uuid4()}{suffix}"
         try:
             db.storage.from_(settings.storage_bucket).upload(
@@ -257,7 +283,101 @@ async def upload_chapters(
         except Exception:
             pass
 
+        # Save textbook metadata in books table for future on-demand chapter importing
+        try:
+            db.table("books").insert({
+                "notebook_id": str(notebook_id),
+                "filename": file.filename,
+                "storage_path": book_storage_path,
+                "total_chapters": len(all_chapters),
+                "chapters": [c.model_dump() for c in all_chapters],
+            }).execute()
+        except Exception:
+            pass
+
         for ch in selected_chapters:
+            source_id = str(uuid4())
+            chapter_filename = f"{base_name} — {ch.title}"
+            storage_path = f"{notebook_id}/{source_id}{suffix}"
+
+            db.table("sources").insert({
+                "id": source_id,
+                "notebook_id": str(notebook_id),
+                "filename": chapter_filename,
+                "storage_path": storage_path,
+                "upload_status": "processing",
+            }).execute()
+
+            created_statuses.append(SourceStatus(**_source_row(source_id)))
+
+            sections = chapter_sections_map.get(ch.index, [])
+            background_tasks.add_task(
+                process_chapter_source,
+                source_id,
+                sections,
+            )
+    finally:
+        local_path.unlink(missing_ok=True)
+
+    return created_statuses
+
+
+@router.get("/books/{notebook_id}", response_model=list[BookItem])
+async def list_books(notebook_id: UUID) -> list[BookItem]:
+    db = get_supabase()
+    try:
+        rows = (
+            db.table("books")
+            .select("*")
+            .eq("notebook_id", str(notebook_id))
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return [BookItem(**r) for r in (rows.data or [])]
+    except Exception:
+        return []
+
+
+@router.post("/books/{book_id}/import-chapters", response_model=list[SourceStatus], status_code=status.HTTP_202_ACCEPTED)
+async def import_book_chapters(
+    background_tasks: BackgroundTasks,
+    book_id: UUID,
+    body: ImportBookChaptersRequest,
+) -> list[SourceStatus]:
+    if not body.chapters:
+        raise HTTPException(400, "At least one chapter must be selected.")
+
+    db = get_supabase()
+    settings = get_settings()
+    book_row = db.table("books").select("*").eq("id", str(book_id)).maybe_single().execute()
+    if not book_row.data:
+        raise HTTPException(404, "Book not found.")
+
+    book = book_row.data
+    notebook_id = book["notebook_id"]
+    storage_path = book["storage_path"]
+    suffix = Path(book["filename"]).suffix.lower()
+
+    # Download original book from storage
+    try:
+        file_bytes = db.storage.from_(settings.storage_bucket).download(storage_path)
+    except Exception as err:
+        raise HTTPException(502, f"Could not load book file from storage: {err}")
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="medtech-more-chapters-"))
+    local_path = temp_dir / f"book{suffix}"
+    local_path.write_bytes(file_bytes)
+
+    created_statuses: list[SourceStatus] = []
+    base_name = Path(book["filename"]).stem
+
+    try:
+        chapter_sections_map = {}
+        for ch in body.chapters:
+            sections = extract_chapter_sections(local_path, ch.start_page, ch.end_page)
+            chapter_sections_map[ch.index] = sections
+
+        for ch in body.chapters:
             source_id = str(uuid4())
             chapter_filename = f"{base_name} — {ch.title}"
             storage_path = f"{notebook_id}/{source_id}{suffix}"

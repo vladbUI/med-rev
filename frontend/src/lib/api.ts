@@ -64,14 +64,47 @@ export async function detectChapters(file: File): Promise<DetectChaptersResponse
   return response.json()
 }
 
+export type BookItem = {
+  id: string
+  notebook_id: string
+  filename: string
+  storage_path: string
+  total_chapters: number
+  chapters: ChapterItem[]
+  created_at?: string
+}
+
+export async function getBooks(notebookId: string): Promise<BookItem[]> {
+  const response = await fetch(`${API_URL}/sources/books/${notebookId}`)
+  if (!response.ok) return []
+  return response.json()
+}
+
+export async function importBookChapters(
+  bookId: string,
+  chapters: ChapterItem[]
+): Promise<SourceStatus[]> {
+  const response = await fetch(`${API_URL}/sources/books/${bookId}/import-chapters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chapters }),
+  })
+  if (!response.ok) throw new Error((await response.json().catch(() => null))?.detail ?? 'Failed to import chapters')
+  return response.json()
+}
+
 export async function uploadChapters(
   notebookId: string,
   file: File,
-  chapters: ChapterItem[]
+  chapters: ChapterItem[],
+  allChapters?: ChapterItem[]
 ): Promise<SourceStatus[]> {
   const form = new FormData()
   form.append('file', file)
   form.append('chapters_json', JSON.stringify(chapters))
+  if (allChapters) {
+    form.append('all_chapters_json', JSON.stringify(allChapters))
+  }
   const response = await fetch(`${API_URL}/sources/upload-chapters?notebook_id=${notebookId}`, {
     method: 'POST',
     body: form,

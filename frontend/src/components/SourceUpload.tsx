@@ -1,8 +1,11 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react'
 import {
+  BookItem,
   ChapterItem,
   detectChapters,
+  getBooks,
   getSourceStatus,
+  importBookChapters,
   SourceStatus,
   uploadChapters,
   uploadSource,
@@ -25,6 +28,7 @@ export default function SourceUpload({
   onSourcesChange,
   onSourceReady,
 }: Props) {
+  const [books, setBooks] = useState<BookItem[]>([])
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatusText, setUploadStatusText] = useState('Uploading study file…')
@@ -35,8 +39,15 @@ export default function SourceUpload({
     file: File
     chapters: ChapterItem[]
   } | null>(null)
+  const [activeBookForChapters, setActiveBookForChapters] = useState<BookItem | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Load books for the notebook
+  useEffect(() => {
+    if (!notebookId) return
+    getBooks(notebookId).then(setBooks).catch(() => {})
+  }, [notebookId, sources.length])
 
   // Poll processing sources until they reach 'ready' or 'failed'
   useEffect(() => {
@@ -130,13 +141,40 @@ export default function SourceUpload({
 
   async function handleImportChapters(selected: ChapterItem[]) {
     if (!detectedChapters || !notebookId) return
-    const { file } = detectedChapters
+    const { file, chapters: allDetected } = detectedChapters
     setDetectedChapters(null)
     setIsUploading(true)
     setUploadStatusText(`Importing ${selected.length} chapters in parallel…`)
 
     try {
-      const newSources = await uploadChapters(notebookId, file, selected)
+      const newSources = await uploadChapters(notebookId, file, selected, allDetected)
+      onSourcesChange(prev => [...newSources, ...prev])
+      setPendingIds(prev => {
+        const next = new Set(prev)
+        newSources.forEach(s => next.add(s.id))
+        return next
+      })
+      if (newSources.length > 0) {
+        onSourceReady?.(newSources[0].id)
+      }
+      getBooks(notebookId).then(setBooks).catch(() => {})
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import chapters')
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleImportMoreFromExistingBook(selected: ChapterItem[]) {
+    if (!activeBookForChapters || !notebookId) return
+    const book = activeBookForChapters
+    setActiveBookForChapters(null)
+    setIsUploading(true)
+    setUploadStatusText(`Importing ${selected.length} additional chapters from ${book.filename}…`)
+
+    try {
+      const newSources = await importBookChapters(book.id, selected)
       onSourcesChange(prev => [...newSources, ...prev])
       setPendingIds(prev => {
         const next = new Set(prev)
@@ -150,7 +188,6 @@ export default function SourceUpload({
       setError(err instanceof Error ? err.message : 'Failed to import chapters')
     } finally {
       setIsUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -190,15 +227,35 @@ export default function SourceUpload({
     return '▤'
   }
 
+  // Get imported chapter titles
+  const importedTitles = new Set(
+    sources.map(s => {
+      const parts = s.filename.split('—')
+      return parts.length > 1 ? parts.slice(1).join('—').toLowerCase().trim() : s.filename.toLowerCase().trim()
+    })
+  )
+
   return (
     <section className="sources-panel">
       {detectedChapters && (
         <ChapterSplitModal
           filename={detectedChapters.file.name}
           chapters={detectedChapters.chapters}
+          alreadyImportedTitles={importedTitles}
           onConfirm={handleImportChapters}
           onImportSingle={handleImportSingleDocument}
           onCancel={() => setDetectedChapters(null)}
+        />
+      )}
+
+      {activeBookForChapters && (
+        <ChapterSplitModal
+          filename={activeBookForChapters.filename}
+          chapters={activeBookForChapters.chapters}
+          alreadyImportedTitles={importedTitles}
+          isExistingBook={true}
+          onConfirm={handleImportMoreFromExistingBook}
+          onCancel={() => setActiveBookForChapters(null)}
         />
       )}
 
@@ -251,44 +308,118 @@ export default function SourceUpload({
           }}
         />
         {isUploading ? (
-          <>
-            <div className="upload-spinner" />
-            <strong>{uploadStatusText}</strong>
-            <span>Extracting chapters & generating vector embeddings</span>
-          </>
+          <div className="dropzone-uploading">
+            <span className="spinner" />
+            <p>{uploadStatusText}</p>
+          </div>
         ) : (
-          <>
-            <strong>Drop a study file or textbook here</strong>
-            <span>or browse from your device · 200 MB maximum</span>
-            <em>Choose file</em>
-          </>
+          <div className="dropzone-idle">
+            <span className="upload-icon">⬆</span>
+            <p>
+              <strong>Click to upload</strong> or drag and drop
+            </p>
+            <span>PDF, PPTX, or DOCX up to 200 MB</span>
+          </div>
         )}
       </label>
 
-      {error && <p className="upload-error">⚠️ {error}</p>}
+      {error && <p className="source-error">{error}</p>}
 
-      {sources.length > 0 && (
-        <div className="source-list">
-          <p className="source-list-label">
-            {sources.length} source{sources.length !== 1 ? 's' : ''} in this notebook
-          </p>
-          {sources.map(src => (
-            <article
-              key={src.id}
-              className={`source-row ${pendingIds.has(src.id) ? 'new' : ''}`}
-            >
-              <div className="file-badge">{fileIcon(src.filename)}</div>
-              <div className="source-info">
-                <strong>{src.filename}</strong>
-                <p>{statusLabel(src)}</p>
-              </div>
-              <span className={`source-status ${src.upload_status}`}>
-                {src.upload_status}
-              </span>
-            </article>
-          ))}
+      {/* Uploaded Textbooks section */}
+      {books.length > 0 && (
+        <div style={{ marginTop: 24, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1a3325', margin: 0 }}>
+              📚 Textbooks in Notebook ({books.length})
+            </h3>
+            <span style={{ fontSize: 12, color: '#52695c' }}>
+              Add more chapters anytime without re-uploading
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {books.map(book => {
+              const importedCount = book.chapters.filter(c =>
+                importedTitles.has(c.title.toLowerCase().trim())
+              ).length
+              return (
+                <div
+                  key={book.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: '#f8fcfa',
+                    border: '1px solid #d1e7dd',
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 24 }}>📖</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#133e29' }}>{book.filename}</div>
+                      <div style={{ fontSize: 12, color: '#4a6756', marginTop: 2 }}>
+                        {importedCount} of {book.total_chapters} chapters imported
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveBookForChapters(book)}
+                    disabled={isUploading}
+                    style={{
+                      background: '#196946',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '7px 14px',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    + Add Chapters
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
+
+      <div className="source-list-header">
+        <h3>Active Chapter & Study Sources ({sources.length})</h3>
+        {pendingIds.size > 0 && (
+          <span className="pending-badge">
+            <span className="spinner-small" /> Processing {pendingIds.size} source{pendingIds.size > 1 ? 's' : ''}…
+          </span>
+        )}
+      </div>
+
+      <div className="source-list">
+        {sources.length === 0 && !isUploading && (
+          <p className="no-sources">No sources uploaded yet. Add a study file above to get started.</p>
+        )}
+        {sources.map(source => (
+          <div key={source.id} className="source-item">
+            <div className="source-meta">
+              <span className="file-icon">{fileIcon(source.filename)}</span>
+              <div>
+                <strong>{source.filename}</strong>
+                <span className={`status-pill ${source.upload_status}`}>
+                  {statusLabel(source)}
+                </span>
+              </div>
+            </div>
+            {source.upload_status === 'processing' && (
+              <span className="spinner-small" />
+            )}
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
